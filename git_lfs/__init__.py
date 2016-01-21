@@ -90,7 +90,7 @@ def fetch_urls(lfs_url, oid_list):
     return resp['objects']
 
 
-def fetch(git_repo, checkout_dir=None):
+def fetch(git_repo, checkout_dir=None, verbose=0):
     """Download all the files managed by Git LFS
     """
     git_dir = git_repo+'/.git' if os.path.isdir(git_repo+'/.git') else git_repo
@@ -115,6 +115,8 @@ def fetch(git_repo, checkout_dir=None):
         # Skip the file if it looks like it's already there
         with ignore_missing_file():
             if os.stat(dst).st_size == size:
+                if verbose > 1:
+                    print('Skipping', path, '(already present)')
                 continue
 
         # If we have the file in the cache, link to it
@@ -122,13 +124,16 @@ def fetch(git_repo, checkout_dir=None):
             cached = get_cache_dir(git_dir, oid)+'/'+oid
             if os.stat(cached).st_size == size:
                 force_link(cached, dst)
+                if verbose > 0:
+                    print('Linked', path, 'from the cache')
                 continue
 
         oid_list.append(dict(oid=oid, size=size))
         lfs_files[(oid, size)] = path
 
     if not oid_list:
-        print('Nothing to fetch.')
+        if verbose > 0:
+            print('Nothing to fetch.')
         return
 
     # Fetch the URLs of the files from the Git LFS endpoint
