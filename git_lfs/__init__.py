@@ -2,7 +2,7 @@ from __future__ import division, print_function, unicode_literals
 
 import json
 import os
-from subprocess import check_output, PIPE, Popen, STDOUT
+from subprocess import CalledProcessError, check_output, PIPE, Popen, STDOUT
 try:
     from urllib.parse import urlsplit, urlunsplit
     from urllib.request import Request, urlopen
@@ -28,9 +28,14 @@ def get_cache_dir(git_dir, oid):
 
 def get_lfs_endpoint_url(git_repo):
     with in_dir(git_repo):
-        url = check_output(
-            'git config --get remote.origin.url'.split()
-        ).strip().decode('utf8')
+        try:
+            url = check_output(
+                'git config -f .lfsconfig --get lfs.url'.split()
+            ).strip().decode('utf8')
+        except CalledProcessError:
+            url = check_output(
+                'git config --get remote.origin.url'.split()
+            ).strip().decode('utf8') + '/info/lfs'
         if not url.startswith('https://'):
             url = urlsplit(url)
             if url.scheme:
@@ -39,7 +44,7 @@ def get_lfs_endpoint_url(git_repo):
                 # SSH format: git@example.org:repo.git
                 host, path = url.path.split('@', 1)[1].split(':', 1)
                 url = 'https://'+host+'/'+path
-        return url+'/info/lfs'
+        return url
 
 
 def find_lfs_files(checkout_dir):
