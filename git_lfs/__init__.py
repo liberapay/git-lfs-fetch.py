@@ -30,7 +30,7 @@ def get_lfs_endpoint_url(git_repo):
     with in_dir(git_repo):
         try:
             url = check_output(
-                'git config -f .lfsconfig --get lfs.url'.split()
+                'git config --blob HEAD:.lfsconfig --get lfs.url'.split()
             ).strip().decode('utf8')
         except CalledProcessError:
             url = check_output(
