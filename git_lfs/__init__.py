@@ -26,13 +26,14 @@ def get_cache_dir(git_dir, oid):
     return git_dir+'/lfs/objects/'+oid[:2]+'/'+oid[2:4]
 
 
-def get_lfs_endpoint_url(git_repo):
-    with in_dir(git_repo):
-        try:
+def get_lfs_endpoint_url(git_repo, checkout_dir):
+    try:
+        with in_dir(checkout_dir):
             url = check_output(
-                'git config --blob HEAD:.lfsconfig --get lfs.url'.split()
+                'git config -f .lfsconfig --get lfs.url'.split()
             ).strip().decode('utf8')
-        except CalledProcessError:
+    except CalledProcessError:
+        with in_dir(git_repo):
             url = check_output(
                 'git config --get remote.origin.url'.split()
             ).strip().decode('utf8')
@@ -148,7 +149,7 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
         return
 
     # Fetch the URLs of the files from the Git LFS endpoint
-    lfs_url = get_lfs_endpoint_url(git_repo)
+    lfs_url = get_lfs_endpoint_url(git_repo, checkout_dir)
     objects = fetch_urls(lfs_url, oid_list)
 
     # Download the files
