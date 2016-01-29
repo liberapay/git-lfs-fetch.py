@@ -59,11 +59,14 @@ def find_lfs_files(checkout_dir):
         )
     # In old versions of git, check-attr's `-z` flag only applied to input
     sep = b'\0' if b'\0' in repo_files_attrs else b'\n'
-    i = iter(repo_files_attrs.split(sep))
+    i = iter(repo_files_attrs.strip(sep).split(sep))
     paths = set()
     while True:
         try:
-            path, attr, value = next(i), next(i), next(i)
+            if sep == b'\0':
+                path, attr, value = next(i), next(i), next(i)
+            else:
+                path, attr, value = next(i).rsplit(': ', 2)
             attr  # shut up pyflakes
         except StopIteration:
             break
