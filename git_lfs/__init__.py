@@ -35,7 +35,8 @@ def get_lfs_endpoint_url(git_repo):
         except CalledProcessError:
             url = check_output(
                 'git config --get remote.origin.url'.split()
-            ).strip().decode('utf8') + '/info/lfs'
+            ).strip().decode('utf8')
+            url += '/info/lfs' if url.endswith('.git') else '.git/info/lfs'
         if not url.startswith('https://'):
             url = urlsplit(url)
             if url.scheme:
