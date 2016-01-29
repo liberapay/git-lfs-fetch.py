@@ -57,7 +57,9 @@ def find_lfs_files(checkout_dir):
             'git check-attr --cached --stdin -z diff'.split(),
             stdin=repo_files.stdout
         )
-    i = iter(repo_files_attrs.split(b'\0'))
+    # In old versions of git, check-attr's `-z` flag only applied to input
+    sep = b'\0' if b'\0' in repo_files_attrs else b'\n'
+    i = iter(repo_files_attrs.split(sep))
     paths = set()
     while True:
         try:
