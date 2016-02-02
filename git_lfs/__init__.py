@@ -38,15 +38,15 @@ def get_lfs_endpoint_url(git_repo, checkout_dir):
                 'git config --get remote.origin.url'.split()
             ).strip().decode('utf8')
             url += '/info/lfs' if url.endswith('.git') else '.git/info/lfs'
-        if not url.startswith('https://'):
-            url = urlsplit(url)
-            if url.scheme:
-                url = urlunsplit('https', url.hostname, url.path)
-            else:
-                # SSH format: git@example.org:repo.git
-                host, path = url.path.split('@', 1)[1].split(':', 1)
-                url = 'https://'+host+'/'+path
-        return url
+    if not url.startswith('https://'):
+        url = urlsplit(url)
+        if url.scheme:
+            url = urlunsplit('https', url.hostname, url.path)
+        else:
+            # SSH format: git@example.org:repo.git
+            host, path = url.path.split('@', 1)[1].split(':', 1)
+            url = 'https://'+host+'/'+path
+    return url
 
 
 def find_lfs_files(checkout_dir):
