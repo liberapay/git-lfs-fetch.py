@@ -150,6 +150,8 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
 
     # Fetch the URLs of the files from the Git LFS endpoint
     lfs_url = get_lfs_endpoint_url(git_repo, checkout_dir)
+    if verbose > 1:
+        print('Fetching URLs from %s...' % lfs_url)
     objects = fetch_urls(lfs_url, oid_list)
 
     # Download the files
