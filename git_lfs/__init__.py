@@ -58,7 +58,7 @@ def find_lfs_files(checkout_dir):
     with in_dir(checkout_dir):
         repo_files = Popen('git ls-files -z'.split(), stdout=PIPE)
         repo_files_attrs = check_output(
-            'git check-attr --cached --stdin -z diff'.split(),
+            'git check-attr --cached --stdin -z diff filter'.split(),
             stdin=repo_files.stdout
         )
     # In old versions of git, check-attr's `-z` flag only applied to input
