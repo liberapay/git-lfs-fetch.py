@@ -44,7 +44,7 @@ def get_lfs_endpoint_url(git_repo, checkout_dir):
     if not url.startswith('https://'):
         url = urlsplit(url)
         if url.scheme:
-            url = urlunsplit('https', url.hostname, url.path)
+            url = urlunsplit(('https', url.hostname, url.path, '', ''))
         else:
             # SSH format: git@example.org:repo.git
             host, path = url.path.split('@', 1)[1].split(':', 1)
