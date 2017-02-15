@@ -123,8 +123,10 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
                 check_output(['git', 'reset', 'HEAD'])
 
     # Read the LFS metadata
+    found = False
     oid_list, lfs_files = [], {}
     for path, oid, size in read_lfs_metadata(checkout_dir):
+        found = True
         dst = checkout_dir+'/'+path
 
         # Skip the file if it looks like it's already there
@@ -145,6 +147,10 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
 
         oid_list.append(dict(oid=oid, size=size))
         lfs_files[(oid, size)] = path
+
+    if not found:
+        print('This repository does not seem to use LFS.')
+        return
 
     if not oid_list:
         if verbose > 0:
