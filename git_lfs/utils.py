@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import os
 import shutil
 from tempfile import mkdtemp, NamedTemporaryFile
+import platform
 
 
 @contextmanager
@@ -54,4 +55,7 @@ def force_link(source, link_name):
     # WARNING not atomic
     with ignore_missing_file():
         os.remove(link_name)
-    os.link(source, link_name)
+    if platform.system() == 'Windows':
+        shutil.copyfile(source, link_name)
+    else:
+        os.link(source, link_name)

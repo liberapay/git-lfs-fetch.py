@@ -2,7 +2,7 @@ from __future__ import division, print_function, unicode_literals
 
 import argparse
 
-from . import fetch
+from git_lfs import fetch
 
 p = argparse.ArgumentParser()
 p.add_argument('git_repo', nargs='?', default='.',

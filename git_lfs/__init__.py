@@ -2,6 +2,7 @@ from __future__ import division, print_function, unicode_literals
 
 import json
 import os
+import pprint
 from subprocess import CalledProcessError, check_output, PIPE, Popen, STDOUT
 try:
     from urllib.parse import urlsplit, urlunsplit
@@ -10,7 +11,7 @@ except ImportError:
     from urllib2 import Request, urlopen
     from urlparse import urlsplit, urlunsplit
 
-from .utils import force_link, ignore_missing_file, in_dir, TempDir, TempFile
+from utils import force_link, ignore_missing_file, in_dir, TempDir, TempFile
 
 
 MEDIA_TYPE = 'application/vnd.git-lfs+json'
@@ -42,14 +43,44 @@ def get_lfs_endpoint_url(git_repo, checkout_dir):
     if not url.endswith('/info/lfs'):
         url += '/info/lfs' if url.endswith('.git') else '.git/info/lfs'
     if not url.startswith('https://'):
-        url = urlsplit(url)
-        if url.scheme:
-            url = urlunsplit(('https', url.hostname, url.path, '', ''))
+        url_split = urlsplit(url)
+        if url_split.scheme:
+            # if a scheme like https:  we get here
+            host = url_split.host
+            path = url_split.path
+            url = urlunsplit(('https', url_split.hostname, url_split.path, '', ''))
         else:
+            # scheme not returned for urlsplit when fed an ssh style repo path
             # SSH format: git@example.org:repo.git
-            host, path = url.path.split('@', 1)[1].split(':', 1)
+            host, path = url_split.path.split('@', 1)[1].split(':', 1)
             url = 'https://'+host+'/'+path
-    return url
+    else:
+        url_split = urlsplit(url)
+        host = url_split.host
+        path = url_split.path
+
+    # need to get GHE auth token if available. issue cmd like this to get:
+    # ssh git@git-server.com git-lfs-authenticate foo/bar.git download
+    if path.endswith('/info/lfs'):
+        path = path[:-len('/info/lfs')]
+    auth_header = get_lfs_api_token(host, path)
+    return url, auth_header
+
+
+def get_lfs_api_token(host, path):
+    """ gets an authorization token to use to do further introspection on the
+        LFS info in the repository.   See documentation here for description of
+        the ssh command and response:
+        https://github.com/git-lfs/git-lfs/blob/master/docs/api/server-discovery.md
+    """
+    header_info = {}
+    query_cmd = 'ssh git@'+host+' git-lfs-authenticate '+path+' download'
+    output = check_output(query_cmd.split()).strip().decode('utf8')
+    if output:
+        query_resp = json.loads(output)
+        header_info = query_resp['header']
+
+    return header_info
 
 
 def find_lfs_files(checkout_dir):
@@ -95,11 +126,19 @@ def read_lfs_metadata(checkout_dir):
         yield (path, oid, size)
 
 
-def fetch_urls(lfs_url, oid_list):
+def fetch_urls(lfs_url, lfs_auth_info, oid_list):
     """Fetch the URLs of the files from the Git LFS endpoint
     """
+    if _verbose > 1:
+        print ('lfs url: %s' % lfs_url)
+        print ('lfs auth_info: %s' % pprint.pformat(lfs_auth_info))
+        print ('oid_list: %s' % pprint.pformat(oid_list))
     data = json.dumps({'operation': 'download', 'objects': oid_list})
-    req = Request(lfs_url+'/objects/batch', data.encode('ascii'), POST_HEADERS)
+    headers = dict(POST_HEADERS)
+    headers.update(lfs_auth_info)
+    if _verbose > 1:
+        print ('headers: %s' % headers)
+    req = Request(lfs_url+'/objects/batch', data.encode('ascii'), headers)
     resp = json.loads(urlopen(req).read().decode('ascii'))
     assert 'objects' in resp, resp
     return resp['objects']
@@ -108,6 +147,8 @@ def fetch_urls(lfs_url, oid_list):
 def fetch(git_repo, checkout_dir=None, verbose=0):
     """Download all the files managed by Git LFS
     """
+    global _verbose
+    _verbose = verbose
     git_dir = git_repo+'/.git' if os.path.isdir(git_repo+'/.git') else git_repo
     checkout_dir = checkout_dir or git_repo
     if checkout_dir == git_dir:
@@ -158,10 +199,12 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
         return
 
     # Fetch the URLs of the files from the Git LFS endpoint
-    lfs_url = get_lfs_endpoint_url(git_repo, checkout_dir)
+    lfs_url, lfs_auth_info = get_lfs_endpoint_url(git_repo, checkout_dir)
+
     if verbose > 1:
-        print('Fetching URLs from %s...' % lfs_url)
-    objects = fetch_urls(lfs_url, oid_list)
+        print('Fetching URLs from %s ...' % lfs_url)
+        print('Authorization info for URL: %s' % lfs_auth_info)
+    objects = fetch_urls(lfs_url, lfs_auth_info, oid_list)
 
     # Download the files
     tmp_dir = git_dir+'/lfs/tmp'
@@ -175,9 +218,14 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
         # Download into tmp_dir
         with TempFile(dir=tmp_dir) as f:
             url = obj['actions']['download']['href']
-            print('Downloading %s (%s bytes) from %s...' %
-                  (path, size, url[:40]))
-            h = urlopen(Request(url))
+            head = obj['actions']['download']['header']
+
+            if verbose > 0:
+                print('Downloading %s (%s bytes) from %s' % (path, size, url))
+            else:
+                print('Downloading %s (%s bytes) from %s' % (path, size, url[:40]))
+
+            h = urlopen(Request(url, headers=head))
             while True:
                 buf = h.read(10240)
                 if not buf:
@@ -188,6 +236,9 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
             dst1 = cache_dir+'/'+oid
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
+            if _verbose > 0:
+                print ('temp download file: ' + f.name)
+                print ('cache file name: ' + dst1)
             os.rename(f.name, dst1)
 
         # Copy into checkout_dir
