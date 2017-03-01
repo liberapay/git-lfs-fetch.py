@@ -42,22 +42,14 @@ def get_lfs_endpoint_url(git_repo, checkout_dir):
         url = url[:-1]
     if not url.endswith('/info/lfs'):
         url += '/info/lfs' if url.endswith('.git') else '.git/info/lfs'
-    if not url.startswith('https://'):
-        url_split = urlsplit(url)
-        if url_split.scheme:
-            # if a scheme like https:  we get here
-            host = url_split.hostname
-            path = url_split.path
-            url = urlunsplit(('https', url_split.hostname, url_split.path, '', ''))
-        else:
-            # scheme not returned for urlsplit when fed an ssh style repo path
+    url_split = urlsplit(url)
+    host, path = url_split.hostname, url_split.path
+    if url_split.scheme != 'https':
+        if not url_split.scheme:
             # SSH format: git@example.org:repo.git
             host, path = url_split.path.split('@', 1)[1].split(':', 1)
-            url = 'https://'+host+'/'+path
-    else:
-        url_split = urlsplit(url)
-        host = url_split.hostname
-        path = url_split.path
+        url = urlunsplit(('https', host, path, '', ''))
+    del url_split
 
     # need to get GHE auth token if available. issue cmd like this to get:
     # ssh git@git-server.com git-lfs-authenticate foo/bar.git download
