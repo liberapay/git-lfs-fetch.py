@@ -11,7 +11,7 @@ except ImportError:
     from urllib2 import Request, urlopen
     from urlparse import urlsplit, urlunsplit
 
-from utils import force_link, ignore_missing_file, in_dir, TempDir, TempFile
+from .utils import force_link, ignore_missing_file, in_dir, TempDir, TempFile
 
 
 MEDIA_TYPE = 'application/vnd.git-lfs+json'
@@ -46,7 +46,7 @@ def get_lfs_endpoint_url(git_repo, checkout_dir):
         url_split = urlsplit(url)
         if url_split.scheme:
             # if a scheme like https:  we get here
-            host = url_split.host
+            host = url_split.hostname
             path = url_split.path
             url = urlunsplit(('https', url_split.hostname, url_split.path, '', ''))
         else:
@@ -56,7 +56,7 @@ def get_lfs_endpoint_url(git_repo, checkout_dir):
             url = 'https://'+host+'/'+path
     else:
         url_split = urlsplit(url)
-        host = url_split.host
+        host = url_split.hostname
         path = url_split.path
 
     # need to get GHE auth token if available. issue cmd like this to get:
@@ -126,17 +126,17 @@ def read_lfs_metadata(checkout_dir):
         yield (path, oid, size)
 
 
-def fetch_urls(lfs_url, lfs_auth_info, oid_list):
+def fetch_urls(lfs_url, lfs_auth_info, oid_list, verbose):
     """Fetch the URLs of the files from the Git LFS endpoint
     """
-    if _verbose > 1:
+    if verbose > 1:
         print ('lfs url: %s' % lfs_url)
         print ('lfs auth_info: %s' % pprint.pformat(lfs_auth_info))
         print ('oid_list: %s' % pprint.pformat(oid_list))
     data = json.dumps({'operation': 'download', 'objects': oid_list})
     headers = dict(POST_HEADERS)
     headers.update(lfs_auth_info)
-    if _verbose > 1:
+    if verbose > 1:
         print ('headers: %s' % headers)
     req = Request(lfs_url+'/objects/batch', data.encode('ascii'), headers)
     resp = json.loads(urlopen(req).read().decode('ascii'))
@@ -147,8 +147,6 @@ def fetch_urls(lfs_url, lfs_auth_info, oid_list):
 def fetch(git_repo, checkout_dir=None, verbose=0):
     """Download all the files managed by Git LFS
     """
-    global _verbose
-    _verbose = verbose
     git_dir = git_repo+'/.git' if os.path.isdir(git_repo+'/.git') else git_repo
     checkout_dir = checkout_dir or git_repo
     if checkout_dir == git_dir:
@@ -204,7 +202,7 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
     if verbose > 1:
         print('Fetching URLs from %s ...' % lfs_url)
         print('Authorization info for URL: %s' % lfs_auth_info)
-    objects = fetch_urls(lfs_url, lfs_auth_info, oid_list)
+    objects = fetch_urls(lfs_url, lfs_auth_info, oid_list, verbose)
 
     # Download the files
     tmp_dir = git_dir+'/lfs/tmp'
@@ -236,9 +234,9 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
             dst1 = cache_dir+'/'+oid
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            if _verbose > 0:
-                print ('temp download file: ' + f.name)
-                print ('cache file name: ' + dst1)
+            if verbose > 0:
+                print('temp download file: ' + f.name)
+                print('cache file name: ' + dst1)
             os.rename(f.name, dst1)
 
         # Copy into checkout_dir
