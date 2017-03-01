@@ -118,18 +118,12 @@ def read_lfs_metadata(checkout_dir):
         yield (path, oid, size)
 
 
-def fetch_urls(lfs_url, lfs_auth_info, oid_list, verbose):
+def fetch_urls(lfs_url, lfs_auth_info, oid_list):
     """Fetch the URLs of the files from the Git LFS endpoint
     """
-    if verbose > 1:
-        print('lfs url: %s' % lfs_url)
-        print('lfs auth_info: %s' % pprint.pformat(lfs_auth_info))
-        print('oid_list: %s' % pprint.pformat(oid_list))
     data = json.dumps({'operation': 'download', 'objects': oid_list})
     headers = dict(POST_HEADERS)
     headers.update(lfs_auth_info)
-    if verbose > 1:
-        print('headers: %s' % headers)
     req = Request(lfs_url+'/objects/batch', data.encode('ascii'), headers)
     resp = json.loads(urlopen(req).read().decode('ascii'))
     assert 'objects' in resp, resp
@@ -191,10 +185,12 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
     # Fetch the URLs of the files from the Git LFS endpoint
     lfs_url, lfs_auth_info = get_lfs_endpoint_url(git_repo, checkout_dir)
 
-    if verbose > 1:
+    if verbose > 0:
         print('Fetching URLs from %s ...' % lfs_url)
+    if verbose > 1:
         print('Authorization info for URL: %s' % lfs_auth_info)
-    objects = fetch_urls(lfs_url, lfs_auth_info, oid_list, verbose)
+        print('oid_list: %s' % pprint.pformat(oid_list))
+    objects = fetch_urls(lfs_url, lfs_auth_info, oid_list)
 
     # Download the files
     tmp_dir = git_dir+'/lfs/tmp'
@@ -226,7 +222,7 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
             dst1 = cache_dir+'/'+oid
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            if verbose > 0:
+            if verbose > 1:
                 print('temp download file: ' + f.name)
                 print('cache file name: ' + dst1)
             os.rename(f.name, dst1)
