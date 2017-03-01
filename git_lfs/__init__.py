@@ -130,14 +130,14 @@ def fetch_urls(lfs_url, lfs_auth_info, oid_list, verbose):
     """Fetch the URLs of the files from the Git LFS endpoint
     """
     if verbose > 1:
-        print ('lfs url: %s' % lfs_url)
-        print ('lfs auth_info: %s' % pprint.pformat(lfs_auth_info))
-        print ('oid_list: %s' % pprint.pformat(oid_list))
+        print('lfs url: %s' % lfs_url)
+        print('lfs auth_info: %s' % pprint.pformat(lfs_auth_info))
+        print('oid_list: %s' % pprint.pformat(oid_list))
     data = json.dumps({'operation': 'download', 'objects': oid_list})
     headers = dict(POST_HEADERS)
     headers.update(lfs_auth_info)
     if verbose > 1:
-        print ('headers: %s' % headers)
+        print('headers: %s' % headers)
     req = Request(lfs_url+'/objects/batch', data.encode('ascii'), headers)
     resp = json.loads(urlopen(req).read().decode('ascii'))
     assert 'objects' in resp, resp
