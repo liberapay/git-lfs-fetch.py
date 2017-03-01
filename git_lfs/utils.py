@@ -5,6 +5,7 @@ import os
 import shutil
 from tempfile import mkdtemp, NamedTemporaryFile
 
+
 @contextmanager
 def ignore_missing_file(filename=None):
     try:
