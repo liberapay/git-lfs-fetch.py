@@ -205,12 +205,8 @@ def fetch(git_repo, checkout_dir=None, verbose=0):
         with TempFile(dir=tmp_dir) as f:
             url = obj['actions']['download']['href']
             head = obj['actions']['download']['header']
-
-            if verbose > 0:
-                print('Downloading %s (%s bytes) from %s' % (path, size, url))
-            else:
-                print('Downloading %s (%s bytes) from %s' % (path, size, url[:40]))
-
+            print('Downloading %s (%s bytes) from %s...' %
+                  (path, size, url if verbose > 0 else url[:40]))
             h = urlopen(Request(url, headers=head))
             while True:
                 buf = h.read(10240)
