@@ -7,8 +7,10 @@ from subprocess import CalledProcessError, check_output, PIPE, Popen, STDOUT
 try:
     from urllib.parse import urlsplit, urlunsplit
     from urllib.request import Request, urlopen
+    from urllib.error import HTTPError
 except ImportError:
     from urllib2 import Request, urlopen
+    from urllib2 import HTTPError
     from urlparse import urlsplit, urlunsplit
 
 from .utils import force_link, ignore_missing_file, in_dir, TempDir, TempFile
@@ -121,13 +123,32 @@ def read_lfs_metadata(checkout_dir):
 def fetch_urls(lfs_url, lfs_auth_info, oid_list):
     """Fetch the URLs of the files from the Git LFS endpoint
     """
+    objects = []
     data = json.dumps({'operation': 'download', 'objects': oid_list})
     headers = dict(POST_HEADERS)
     headers.update(lfs_auth_info)
     req = Request(lfs_url+'/objects/batch', data.encode('ascii'), headers)
-    resp = json.loads(urlopen(req).read().decode('ascii'))
-    assert 'objects' in resp, resp
-    return resp['objects']
+
+    try:
+        resp = json.loads(urlopen(req).read().decode('ascii'))
+        assert 'objects' in resp, resp
+        objects.extend(resp['objects'])
+
+    except HTTPError as err:
+        if err.code != 413:
+            raise
+
+        # It is possible for remote server to respond with 413 Request Entity
+        # Too Large. If that happens try to request for two sets of oids so
+        # request is smaller.
+        objects.extend(
+            fetch_urls(lfs_url, lfs_auth_info, oid_list[:len(oid_list) // 2])
+        )
+        objects.extend(
+            fetch_urls(lfs_url, lfs_auth_info, oid_list[len(oid_list) // 2:])
+        )
+
+    return objects
 
 
 def fetch(git_repo, checkout_dir=None, verbose=0):
